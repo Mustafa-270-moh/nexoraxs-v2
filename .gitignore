@@ -1,0 +1,8 @@
+.env
+**/.env
+**/.env.local
+**/node_modules
+**/.next
+backend/vendor
+backend/storage/logs
+backend/storage/framework/cache

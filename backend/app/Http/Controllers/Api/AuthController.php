@@ -51,7 +51,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         return $this->successResponse(
@@ -75,7 +75,7 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        /** @var \App\Models\User $user */
+        /** @var User $user */
         $user = $request->user();
 
         return $this->successResponse(
@@ -100,7 +100,7 @@ class AuthController extends Controller
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     private function successResponse(string $message, array $data, int $status = 200): JsonResponse
     {
@@ -111,7 +111,7 @@ class AuthController extends Controller
     }
 
     /**
-     * @param array<string, array<int, string>> $errors
+     * @param  array<string, array<int, string>>  $errors
      */
     private function errorResponse(string $message, array $errors, int $status, string $code): JsonResponse
     {

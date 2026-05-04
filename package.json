@@ -1,0 +1,8 @@
+{
+  "name": "nexoraxs-v2",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

@@ -3,10 +3,26 @@
 NexoraXS V2 is a fresh monorepo foundation for a multi-SaaS platform built for small shops and retail businesses.
 
 Current state:
-- Documentation and directory foundation only
-- No feature implementation yet
+- Laravel backend foundation is implemented
+- Sanctum cookie-based Auth API is implemented
+- Workspace API foundation is implemented
+- `core-app` auth and workspace dashboard foundation is implemented
 - No legacy code copied from the old project
 - Initial product focus is the Core Platform plus the Shops SaaS
+
+Implemented phases so far:
+- Laravel API scaffold with PostgreSQL-first configuration
+- Sanctum cookie/session auth endpoints: register, login, logout, me
+- Core platform database foundation for accounts, products, plans, subscriptions, workspaces, and workspace users
+- Workspace API endpoints: list, create, show
+- `apps/core-app` login, register, session-aware dashboard, workspace list, and workspace creation UI
+
+Still not implemented:
+- Shops business features
+- invitations
+- billing
+- extra SaaS verticals
+- legacy system parity beyond the documented foundation slices
 
 Core constraints:
 - Backend: Laravel API
@@ -43,6 +59,18 @@ nexoraxs-v2/
   infra/
 ```
 
+Shared package foundations:
+- `packages/api-client`: shared browser-first API transport, CSRF bootstrap, credentials handling, and JSON parsing
+- `packages/auth`: typed Sanctum auth helpers built on top of `api-client`
+- `packages/ui-kit`: minimal shared presentational primitives such as buttons, cards, and inputs
+- `packages/app-layout`: minimal authenticated shell components for future frontend apps
+- `packages/workspace-switcher`: lightweight workspace types and helper utilities only, not a full switcher UI yet
+
+Current package note:
+- these packages are intentionally minimal
+- they define future reuse boundaries without pulling Shops or billing logic into shared code
+- existing app code does not need to move into them all at once
+
 Read this order before making code changes:
 1. `AGENTS.md`
 2. `docs/CODEX_RULES.md`
@@ -64,4 +92,4 @@ Document map:
 - `docs/ROADMAP.md`: sequencing for future work
 - `docs/CODEX_RULES.md`: execution rules for AI agents
 
-This repo is intentionally in a planning-first state. The next work should be small, testable bootstrap tasks that follow these docs exactly.
+This repo is intentionally still in a foundation-first state. The next work should remain small, testable, and aligned with the docs before any Shops business features are added.

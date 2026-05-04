@@ -1,0 +1,13 @@
+{
+  "name": "@nexoraxs/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Sanctum auth helpers for NexoraXS frontend apps.",
+  "dependencies": {
+    "@nexoraxs/api-client": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

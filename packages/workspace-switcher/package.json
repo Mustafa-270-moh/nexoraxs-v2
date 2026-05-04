@@ -1,0 +1,10 @@
+{
+  "name": "@nexoraxs/workspace-switcher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight workspace switcher types and helpers for NexoraXS frontend apps.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

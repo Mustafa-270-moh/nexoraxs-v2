@@ -1,0 +1,8 @@
+2026-05-04 23:35:07.705 EEST [20040] LOG:  starting PostgreSQL 18.1 on x86_64-windows, compiled by msvc-19.44.35221, 64-bit
+2026-05-04 23:35:07.711 EEST [20040] LOG:  listening on IPv4 address "127.0.0.1", port 54329
+2026-05-04 23:35:08.313 EEST [28916] LOG:  database system was shut down at 2026-05-04 23:35:00 EEST
+2026-05-04 23:35:08.399 EEST [20040] LOG:  database system is ready to accept connections
+2026-05-04 23:40:08.271 EEST [29168] LOG:  checkpoint starting: time
+2026-05-04 23:42:00.993 EEST [29168] LOG:  checkpoint complete: wrote 1015 buffers (6.2%), wrote 3 SLRU buffers; 1 WAL file(s) added, 0 removed, 0 recycled; write=111.726 s, sync=0.835 s, total=112.725 s; sync files=311, longest=0.014 s, average=0.003 s; distance=4879 kB, estimate=4879 kB; lsn=0/1CB0030, redo lsn=0/1CAFF88
+2026-05-04 23:44:20.586 EEST [31476] FATAL:  role "nexoraxs_v2_backend" does not exist
+2026-05-04 23:44:37.778 EEST [30276] FATAL:  role "nexoraxs_v2_backend" does not exist

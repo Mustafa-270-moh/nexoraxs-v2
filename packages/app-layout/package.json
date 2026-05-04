@@ -1,0 +1,14 @@
+{
+  "name": "@nexoraxs/app-layout",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal shared dashboard shell components for NexoraXS frontend apps.",
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

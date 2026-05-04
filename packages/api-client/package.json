@@ -1,0 +1,10 @@
+{
+  "name": "@nexoraxs/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared API transport helpers for NexoraXS frontend apps.",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

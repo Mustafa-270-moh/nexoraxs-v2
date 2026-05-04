@@ -57,6 +57,26 @@ Current behavior:
 - workspace reads are membership-scoped
 - `GET /api/workspaces/{slug}` returns `404` when the current user does not belong to that workspace
 
+## Current Shops Access Foundation Endpoints
+
+These Shops access endpoints are implemented in the current foundation phase:
+
+- `GET /api/workspaces/{workspaceSlug}/apps`
+- `POST /api/workspaces/{workspaceSlug}/apps/shops/subscribe`
+- `GET /api/workspaces/{workspaceSlug}/shops/context`
+
+Current behavior:
+- all Shops access endpoints require Sanctum session authentication
+- workspace lookup is membership-scoped and returns `404` for non-members
+- `GET /api/workspaces/{workspaceSlug}/apps` lists platform app access for the workspace account
+- `POST /api/workspaces/{workspaceSlug}/apps/shops/subscribe` activates the `shops` subscription on the workspace account using the seeded `starter` plan
+- only workspace owners can subscribe to Shops
+- `GET /api/workspaces/{workspaceSlug}/shops/context` returns:
+  - `workspace`
+  - `product` as `shops`
+  - `subscription` status and access state
+  - `current_user_role`
+
 ## Response Shape
 
 Success responses should follow one of these patterns:
