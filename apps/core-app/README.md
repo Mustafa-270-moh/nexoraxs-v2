@@ -23,6 +23,12 @@ Copy `.env.example` to `.env.local` and keep:
 NEXT_PUBLIC_API_BASE=https://api.nexoraxs.com
 ```
 
+For Windows 11 local development against the local Docker backend, copy `.env.local.example` to `.env.local` instead:
+
+```bash
+NEXT_PUBLIC_API_BASE=http://localhost:8080
+```
+
 ## Local Run
 
 Install dependencies:
@@ -42,6 +48,48 @@ Default local URL:
 ```text
 http://localhost:3000
 ```
+
+## Local Backend Connection
+
+Use this mode when the backend is already running locally through Docker on Windows 11.
+
+1. Start the local backend stack first and verify:
+
+```text
+http://localhost:8080/api/health
+```
+
+2. In `apps/core-app`, copy:
+
+```bash
+.env.local.example -> .env.local
+```
+
+3. Install frontend dependencies:
+
+```bash
+npm install
+```
+
+4. Start the frontend:
+
+```bash
+npm run dev
+```
+
+5. Open:
+
+```text
+http://localhost:3000/login
+```
+
+Expected browser behavior:
+- `GET http://localhost:8080/sanctum/csrf-cookie` succeeds
+- `POST http://localhost:8080/api/auth/login` succeeds after valid credentials
+- `GET http://localhost:8080/api/auth/me` succeeds after login
+- `GET http://localhost:8080/api/workspaces` succeeds after login
+
+This local path is for backend connection verification only. It is not a production-equivalent secure cookie test.
 
 ## What The Frontend Calls
 
@@ -77,6 +125,14 @@ Basic local smoke test for frontend rendering only:
 6. Submit a workspace `name` and `slug`.
 7. Confirm the dashboard refreshes and shows the workspace list after creation.
 8. Use this mode for UI checks only, not for final secure-cookie verification.
+
+Local backend verification smoke test:
+1. Confirm the backend health endpoint returns `{ "status": "ok", "app": "nexoraxs-api" }`.
+2. Start `core-app` with `.env.local` pointing to `http://localhost:8080`.
+3. Open `http://localhost:3000/login`.
+4. In DevTools Network, confirm `GET /sanctum/csrf-cookie` is sent to `http://localhost:8080`.
+5. Log in or register with a backend user.
+6. Confirm `/api/auth/me` and `/api/workspaces` both return from `http://localhost:8080`.
 
 ## Production-Like HTTPS Test
 
