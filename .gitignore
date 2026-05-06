@@ -1,8 +1,16 @@
 .env
 **/.env
+.env.production
+**/.env.production
+.env.local.docker
 **/.env.local
 **/node_modules
 **/.next
 backend/vendor
 backend/storage/logs
 backend/storage/framework/cache
+infra/ssl/*
+!infra/ssl/.gitkeep
+backups/*
+!backups/.gitkeep
+.tmp/pg-*
