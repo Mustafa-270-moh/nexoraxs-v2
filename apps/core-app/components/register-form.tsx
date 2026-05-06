@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
+import { FormEvent, useState } from "react";
 import { AuthApiError, register } from "@/lib/auth-api";
 
 type RegisterState = {
@@ -15,25 +15,8 @@ type RegisterFormProps = {
   initialEmail?: string;
 };
 
-function subscribeToHydration() {
-  return () => {};
-}
-
-function getClientHydrationSnapshot() {
-  return true;
-}
-
-function getServerHydrationSnapshot() {
-  return false;
-}
-
 export function RegisterForm({ initialEmail = "" }: RegisterFormProps) {
   const router = useRouter();
-  const isHydrated = useSyncExternalStore(
-    subscribeToHydration,
-    getClientHydrationSnapshot,
-    getServerHydrationSnapshot,
-  );
   const [values, setValues] = useState<RegisterState>({
     name: "",
     email: initialEmail,
@@ -44,13 +27,13 @@ export function RegisterForm({ initialEmail = "" }: RegisterFormProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
 
-  useEffect(() => {
-    console.log("REGISTER FORM HYDRATED");
-  }, []);
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    console.log("REGISTER SUBMIT HANDLER FIRED");
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     setFieldErrors({});
@@ -63,7 +46,6 @@ export function RegisterForm({ initialEmail = "" }: RegisterFormProps) {
         password_confirmation: values.passwordConfirmation,
       });
       router.push("/dashboard");
-      router.refresh();
     } catch (error) {
       if (error instanceof AuthApiError) {
         setErrorMessage(error.message);
@@ -168,12 +150,6 @@ export function RegisterForm({ initialEmail = "" }: RegisterFormProps) {
           {isSubmitting ? "Creating account..." : "Create account"}
         </button>
       </div>
-
-      {isHydrated ? (
-        <p className="muted" data-testid="register-hydration-marker">
-          CLIENT HYDRATED: YES
-        </p>
-      ) : null}
     </form>
   );
 }

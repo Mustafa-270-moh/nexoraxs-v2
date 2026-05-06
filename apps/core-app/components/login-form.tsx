@@ -25,6 +25,11 @@ export function LoginForm({ initialEmail = "" }: LoginFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
     setFieldErrors({});
@@ -32,7 +37,6 @@ export function LoginForm({ initialEmail = "" }: LoginFormProps) {
     try {
       await login(values);
       router.push("/dashboard");
-      router.refresh();
     } catch (error) {
       if (error instanceof AuthApiError) {
         setErrorMessage(error.message);
