@@ -291,6 +291,12 @@ input {
   border: 1px solid rgba(22, 52, 58, 0.16);
 }
 
+.button-selected {
+  border-color: rgba(15, 118, 110, 0.4);
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--brand-strong);
+}
+
 .button:hover,
 .button-secondary:hover {
   transform: translateY(-1px);
@@ -352,6 +358,18 @@ input {
   line-height: 1.1;
 }
 
+.workspace-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--brand-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .dashboard-hero {
   display: flex;
   justify-content: space-between;
@@ -403,6 +421,85 @@ input {
 .workspace-list {
   display: grid;
   gap: 14px;
+}
+
+.app-launcher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.app-card {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(22, 52, 58, 0.12);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.app-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.app-card-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-card-title {
+  margin-top: 6px;
+  font-size: 1.3rem;
+  line-height: 1.05;
+}
+
+.app-card-copy {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.app-card-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-card-meta dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.app-card-meta dd {
+  margin-top: 4px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.app-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.app-badge.active {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--brand-strong);
+}
+
+.app-badge.pending {
+  background: rgba(22, 52, 58, 0.08);
+  color: var(--text);
 }
 
 .workspace-item {
@@ -475,6 +572,10 @@ input {
   }
 
   .workspace-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-card-meta {
     grid-template-columns: 1fr;
   }
 

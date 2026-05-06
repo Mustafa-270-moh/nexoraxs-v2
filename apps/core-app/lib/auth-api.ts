@@ -17,6 +17,15 @@ export type Workspace = {
   updated_at: string | null;
 };
 
+export type WorkspaceApp = {
+  code: string;
+  name: string;
+  is_active: boolean;
+  subscription_status: string;
+  plan_code: string | null;
+  has_access: boolean;
+};
+
 type ApiEnvelope<T> = {
   message: string;
   data: T;
@@ -237,5 +246,36 @@ export function getWorkspaceBySlug(slug: string) {
     {
       method: "GET",
     },
+  );
+}
+
+export function getWorkspaceApps(slug: string) {
+  return request<ApiEnvelope<{ workspace: Workspace; apps: WorkspaceApp[] }>>(
+    `/api/workspaces/${encodeURIComponent(slug)}/apps`,
+    {
+      method: "GET",
+    },
+  );
+}
+
+export function subscribeToShops(slug: string) {
+  return request<
+    ApiEnvelope<{
+      workspace: Workspace;
+      product: string;
+      subscription: {
+        status: string;
+        plan_code: string | null;
+        starts_at: string | null;
+        ends_at: string | null;
+        has_access: boolean;
+      };
+    }>
+  >(
+    `/api/workspaces/${encodeURIComponent(slug)}/apps/shops/subscribe`,
+    {
+      method: "POST",
+    },
+    { requireCsrf: true },
   );
 }

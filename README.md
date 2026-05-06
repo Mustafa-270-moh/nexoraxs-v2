@@ -6,7 +6,10 @@ Current state:
 - Laravel backend foundation is implemented
 - Sanctum cookie-based Auth API is implemented
 - Workspace API foundation is implemented
+- Shops access backend foundation is implemented
 - `core-app` auth and workspace dashboard foundation is implemented
+- Shared package foundations are implemented
+- Docker deployment foundation for the API stack is implemented
 - No legacy code copied from the old project
 - Initial product focus is the Core Platform plus the Shops SaaS
 
@@ -16,6 +19,9 @@ Implemented phases so far:
 - Core platform database foundation for accounts, products, plans, subscriptions, workspaces, and workspace users
 - Workspace API endpoints: list, create, show
 - `apps/core-app` login, register, session-aware dashboard, workspace list, and workspace creation UI
+- backend Shops access endpoints for workspace app access and Shops subscription context
+- minimal shared packages for API transport, auth, UI, layout, and workspace helpers
+- Docker Compose stack for backend, PostgreSQL, Redis, and Nginx
 
 Still not implemented:
 - Shops business features
@@ -93,3 +99,11 @@ Document map:
 - `docs/CODEX_RULES.md`: execution rules for AI agents
 
 This repo is intentionally still in a foundation-first state. The next work should remain small, testable, and aligned with the docs before any Shops business features are added.
+
+Deployment note:
+- the current Docker deployment foundation targets the backend/API stack only
+- start with `infra/windows/Start-NexoraXs.ps1` after completing `docs/DEPLOYMENT.md`
+
+Local Windows 11 note:
+- for local Docker Desktop + WSL2 development, read `docs/LOCAL_WINDOWS_DOCKER.md`
+- local startup uses `infra/windows/Start-NexoraXs-Local.ps1`

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Workspace\StoreShopsModeRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\Support\Str;
 
 class WorkspaceAppController extends Controller
 {
+    private const SHOPS_MODE_SETTING_KEY = 'shops.mode';
+
     public function index(Request $request, string $workspaceSlug): JsonResponse
     {
         $workspace = $this->resolveWorkspaceMembership($request, $workspaceSlug);
@@ -139,6 +142,10 @@ class WorkspaceAppController extends Controller
             (string) $workspace->account_id,
             'shops',
         );
+        $shopsMode = $this->resolveWorkspaceSetting(
+            (string) $workspace->id,
+            self::SHOPS_MODE_SETTING_KEY,
+        );
 
         return $this->successResponse(
             'Shops context retrieved successfully.',
@@ -147,6 +154,86 @@ class WorkspaceAppController extends Controller
                 'product' => 'shops',
                 'subscription' => $this->serializeSubscription($subscription),
                 'current_user_role' => (string) $workspace->role,
+                'shops_mode' => $shopsMode,
+                'onboarding_required' => $subscription?->status === 'active' && $shopsMode === null,
+            ],
+        );
+    }
+
+    public function storeShopsMode(StoreShopsModeRequest $request, string $workspaceSlug): JsonResponse
+    {
+        $workspace = $this->resolveWorkspaceMembership($request, $workspaceSlug);
+
+        if (! $workspace) {
+            return $this->workspaceNotFoundResponse();
+        }
+
+        if ($workspace->role !== 'owner') {
+            return $this->errorResponse(
+                'Only workspace owners can set the shops mode.',
+                [],
+                403,
+                'WORKSPACE_ROLE_FORBIDDEN',
+            );
+        }
+
+        $subscription = $this->resolveWorkspaceProductSubscription(
+            (string) $workspace->account_id,
+            'shops',
+        );
+
+        if (! $subscription || $subscription->status !== 'active') {
+            return $this->errorResponse(
+                'Shops must be active for this workspace before choosing a mode.',
+                [],
+                409,
+                'SHOPS_ACCESS_REQUIRED',
+            );
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+        $mode = $request->validated('mode');
+        $now = now();
+
+        DB::transaction(function () use ($workspace, $user, $mode, $now): void {
+            $existingSetting = DB::table('workspace_settings')
+                ->where('workspace_id', $workspace->id)
+                ->where('key', self::SHOPS_MODE_SETTING_KEY)
+                ->first();
+
+            if ($existingSetting) {
+                DB::table('workspace_settings')
+                    ->where('id', $existingSetting->id)
+                    ->update([
+                        'value' => $mode,
+                        'selected_by_user_id' => $user->id,
+                        'updated_at' => $now,
+                    ]);
+
+                return;
+            }
+
+            DB::table('workspace_settings')->insert([
+                'id' => (string) Str::ulid(),
+                'workspace_id' => $workspace->id,
+                'key' => self::SHOPS_MODE_SETTING_KEY,
+                'value' => $mode,
+                'selected_by_user_id' => $user->id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+
+        return $this->successResponse(
+            'Shops mode saved successfully.',
+            [
+                'workspace' => $this->serializeWorkspace($workspace),
+                'product' => 'shops',
+                'subscription' => $this->serializeSubscription($subscription),
+                'current_user_role' => (string) $workspace->role,
+                'shops_mode' => $mode,
+                'onboarding_required' => false,
             ],
         );
     }
@@ -208,6 +295,16 @@ class WorkspaceAppController extends Controller
                 'plans.code as plan_code',
             )
             ->first();
+    }
+
+    private function resolveWorkspaceSetting(string $workspaceId, string $key): ?string
+    {
+        $value = DB::table('workspace_settings')
+            ->where('workspace_id', $workspaceId)
+            ->where('key', $key)
+            ->value('value');
+
+        return $value ? (string) $value : null;
     }
 
     /**

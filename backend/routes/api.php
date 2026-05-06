@@ -27,4 +27,5 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/workspaces/{workspaceSlug}/apps', [WorkspaceAppController::class, 'index']);
     Route::post('/workspaces/{workspaceSlug}/apps/shops/subscribe', [WorkspaceAppController::class, 'subscribeToShops']);
     Route::get('/workspaces/{workspaceSlug}/shops/context', [WorkspaceAppController::class, 'shopsContext']);
+    Route::post('/workspaces/{workspaceSlug}/shops/mode', [WorkspaceAppController::class, 'storeShopsMode']);
 });
