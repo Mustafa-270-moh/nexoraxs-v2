@@ -10,6 +10,7 @@ if (-not (Test-Path $envPath)) {
 }
 
 $envFileContent = Get-Content $envPath -Raw
+$cacheLaravelConfig = $envFileContent -match "(?m)^CACHE_LARAVEL_CONFIG=true\s*$"
 
 if ($envFileContent -notmatch "(?m)^APP_KEY=base64:.+$" -or $envFileContent -match "APP_KEY=base64:REPLACE_WITH_A_REAL_APP_KEY") {
     throw "APP_KEY is missing or still using the placeholder value in $EnvFile."
@@ -63,5 +64,10 @@ if (-not (Test-Path (Join-Path $projectRoot "backend\\vendor\\autoload.php"))) {
 }
 
 docker compose --env-file $EnvFile -f docker-compose.local.yml exec -T backend sh -lc "if [ ! -f vendor/autoload.php ]; then composer install --prefer-dist --no-interaction --no-progress; fi"
-docker compose --env-file $EnvFile -f docker-compose.local.yml exec -T backend php artisan config:clear
 docker compose --env-file $EnvFile -f docker-compose.local.yml exec -T backend php artisan migrate --seed --force
+
+if ($cacheLaravelConfig) {
+    docker compose --env-file $EnvFile -f docker-compose.local.yml exec -T backend php artisan config:cache
+} else {
+    docker compose --env-file $EnvFile -f docker-compose.local.yml exec -T backend php artisan config:clear
+}
