@@ -11,6 +11,7 @@ import {
   SHOPS_MODE_OPTIONS,
   formatShopsModeLabel,
 } from "@/lib/shops-mode.mjs";
+import { resolveCoreAppBaseUrl } from "@/lib/core-app-url.mjs";
 
 type ShopsWorkspaceShellProps = {
   workspaceSlug: string;
@@ -18,13 +19,13 @@ type ShopsWorkspaceShellProps = {
 
 type ShopsContextData = Awaited<ReturnType<typeof getShopsContext>>["data"];
 
-const DEFAULT_CORE_APP_BASE = "https://app.nexoraxs.com";
 const pendingShopsContextRequests = new Map<string, Promise<ShopsContextData>>();
 
 function coreAppBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_CORE_APP_BASE ?? DEFAULT_CORE_APP_BASE
-  ).replace(/\/$/, "");
+  return resolveCoreAppBaseUrl(
+    process.env.NEXT_PUBLIC_CORE_APP_BASE,
+    typeof window === "undefined" ? undefined : window.location.hostname,
+  );
 }
 
 function loadSharedShopsContext(workspaceSlug: string) {

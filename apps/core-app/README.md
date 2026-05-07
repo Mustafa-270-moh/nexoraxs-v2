@@ -27,6 +27,7 @@ For Windows 11 local development against the local Docker backend, copy `.env.lo
 
 ```bash
 NEXT_PUBLIC_API_BASE=http://localhost:8080
+NEXT_PUBLIC_SHOPS_APP_BASE=http://localhost:3001
 ```
 
 ## Local Run
@@ -77,7 +78,13 @@ npm install
 npm run dev
 ```
 
-5. Open:
+5. In `apps/shops-app`, copy `.env.local.example` to `.env.local`, then run:
+
+```bash
+npm run dev
+```
+
+6. Open:
 
 ```text
 http://localhost:3000/login
@@ -88,6 +95,7 @@ Expected browser behavior:
 - `POST http://localhost:8080/api/auth/login` succeeds after valid credentials
 - `GET http://localhost:8080/api/auth/me` succeeds after login
 - `GET http://localhost:8080/api/workspaces` succeeds after login
+- `Open Shops` sends the selected workspace to `http://localhost:3001/w/{workspaceSlug}`
 
 This local path is for backend connection verification only. It is not a production-equivalent secure cookie test.
 
@@ -133,6 +141,7 @@ Local backend verification smoke test:
 4. In DevTools Network, confirm `GET /sanctum/csrf-cookie` is sent to `http://localhost:8080`.
 5. Log in or register with a backend user.
 6. Confirm `/api/auth/me` and `/api/workspaces` both return from `http://localhost:8080`.
+7. Start `shops-app` on `http://localhost:3001` and confirm `Open Shops` routes to `http://localhost:3001/w/{workspaceSlug}` instead of the production domain.
 
 ## Production-Like HTTPS Test
 

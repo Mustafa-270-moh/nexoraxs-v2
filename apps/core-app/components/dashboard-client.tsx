@@ -16,6 +16,7 @@ import {
 } from "@/lib/auth-api";
 import {
   buildWorkspaceAppUrl,
+  resolveShopsAppBaseUrl,
   resolveSelectedWorkspaceSlug,
 } from "@/lib/workspace-launcher.mjs";
 
@@ -50,9 +51,10 @@ function normalizeWorkspaceSlug(value: string) {
 }
 
 function shopsAppBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SHOPS_APP_BASE ?? "https://shops.nexoraxs.com"
-  ).replace(/\/$/, "");
+  return resolveShopsAppBaseUrl(
+    process.env.NEXT_PUBLIC_SHOPS_APP_BASE,
+    typeof window === "undefined" ? undefined : window.location.hostname,
+  );
 }
 
 function loadDashboardBootstrap() {

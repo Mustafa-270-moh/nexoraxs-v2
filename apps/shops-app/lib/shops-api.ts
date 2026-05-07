@@ -24,8 +24,6 @@ type ApiErrorPayload = {
   code?: string;
 };
 
-const DEFAULT_API_BASE = "https://api.nexoraxs.com";
-
 export class ApiClientError extends Error {
   status: number;
   errors: Record<string, string[]>;
@@ -45,10 +43,52 @@ export class ApiClientError extends Error {
   }
 }
 
+export function resolveApiBaseUrl(
+  configuredBaseUrl?: string,
+  currentHostname?: string,
+  currentProtocol?: string,
+) {
+  const normalizedConfiguredBaseUrl = String(configuredBaseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (normalizedConfiguredBaseUrl) {
+    return normalizedConfiguredBaseUrl;
+  }
+
+  const normalizedHostname = String(currentHostname ?? "").trim().toLowerCase();
+
+  if (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "::1"
+  ) {
+    return "http://localhost:8080";
+  }
+
+  if (normalizedHostname.includes(".")) {
+    const hostnameSegments = normalizedHostname.split(".");
+
+    if (hostnameSegments.length >= 2) {
+      hostnameSegments[0] = "api";
+
+      const normalizedProtocol =
+        currentProtocol === "http:" ? "http" : "https";
+
+      return `${normalizedProtocol}://${hostnameSegments.join(".")}`;
+    }
+  }
+
+  throw new Error(
+    "NEXT_PUBLIC_API_BASE is required when the runtime hostname cannot derive the backend origin.",
+  );
+}
+
 function apiBaseUrl() {
-  return (process.env.NEXT_PUBLIC_API_BASE ?? DEFAULT_API_BASE).replace(
-    /\/$/,
-    "",
+  return resolveApiBaseUrl(
+    process.env.NEXT_PUBLIC_API_BASE,
+    typeof window === "undefined" ? undefined : window.location.hostname,
+    typeof window === "undefined" ? undefined : window.location.protocol,
   );
 }
 

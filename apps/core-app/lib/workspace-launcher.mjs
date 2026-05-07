@@ -16,6 +16,28 @@ export function resolveSelectedWorkspaceSlug(workspaces, preferredSlug) {
   return workspaces[0].slug;
 }
 
+export function resolveShopsAppBaseUrl(configuredBaseUrl, currentHostname) {
+  const normalizedConfiguredBaseUrl = String(configuredBaseUrl ?? "")
+    .trim()
+    .replace(/\/+$/, "");
+
+  if (normalizedConfiguredBaseUrl) {
+    return normalizedConfiguredBaseUrl;
+  }
+
+  const normalizedHostname = String(currentHostname ?? "").trim().toLowerCase();
+
+  if (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "127.0.0.1" ||
+    normalizedHostname === "::1"
+  ) {
+    return "http://localhost:3001";
+  }
+
+  return "https://shops.nexoraxs.com";
+}
+
 export function buildWorkspaceAppUrl(baseUrl, workspaceSlug) {
   const normalizedBaseUrl = String(baseUrl ?? "").replace(/\/+$/, "");
   const normalizedWorkspaceSlug = String(workspaceSlug ?? "").trim();
