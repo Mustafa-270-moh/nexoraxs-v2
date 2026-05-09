@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workspace\StoreShopsModeRequest;
+use App\Http\Requests\Workspace\StoreShopsSetupRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ use Illuminate\Support\Str;
 class WorkspaceAppController extends Controller
 {
     private const SHOPS_MODE_SETTING_KEY = 'shops.mode';
+    private const SHOPS_SETUP_SETTING_KEY = 'shops.setup';
 
     public function index(Request $request, string $workspaceSlug): JsonResponse
     {
@@ -146,17 +148,14 @@ class WorkspaceAppController extends Controller
             (string) $workspace->id,
             self::SHOPS_MODE_SETTING_KEY,
         );
+        $shopsSetup = $this->resolveWorkspaceJsonSetting(
+            (string) $workspace->id,
+            self::SHOPS_SETUP_SETTING_KEY,
+        );
 
         return $this->successResponse(
             'Shops context retrieved successfully.',
-            [
-                'workspace' => $this->serializeWorkspace($workspace),
-                'product' => 'shops',
-                'subscription' => $this->serializeSubscription($subscription),
-                'current_user_role' => (string) $workspace->role,
-                'shops_mode' => $shopsMode,
-                'onboarding_required' => $subscription?->status === 'active' && $shopsMode === null,
-            ],
+            $this->buildShopsContextPayload($workspace, $subscription, $shopsMode, $shopsSetup),
         );
     }
 
@@ -194,47 +193,80 @@ class WorkspaceAppController extends Controller
         /** @var User $user */
         $user = $request->user();
         $mode = $request->validated('mode');
-        $now = now();
+        $shopsSetup = $this->resolveWorkspaceJsonSetting(
+            (string) $workspace->id,
+            self::SHOPS_SETUP_SETTING_KEY,
+        );
 
-        DB::transaction(function () use ($workspace, $user, $mode, $now): void {
-            $existingSetting = DB::table('workspace_settings')
-                ->where('workspace_id', $workspace->id)
-                ->where('key', self::SHOPS_MODE_SETTING_KEY)
-                ->first();
-
-            if ($existingSetting) {
-                DB::table('workspace_settings')
-                    ->where('id', $existingSetting->id)
-                    ->update([
-                        'value' => $mode,
-                        'selected_by_user_id' => $user->id,
-                        'updated_at' => $now,
-                    ]);
-
-                return;
-            }
-
-            DB::table('workspace_settings')->insert([
-                'id' => (string) Str::ulid(),
-                'workspace_id' => $workspace->id,
-                'key' => self::SHOPS_MODE_SETTING_KEY,
-                'value' => $mode,
-                'selected_by_user_id' => $user->id,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        });
+        $this->upsertWorkspaceSetting(
+            (string) $workspace->id,
+            self::SHOPS_MODE_SETTING_KEY,
+            $mode,
+            $user->id,
+        );
 
         return $this->successResponse(
             'Shops mode saved successfully.',
-            [
-                'workspace' => $this->serializeWorkspace($workspace),
-                'product' => 'shops',
-                'subscription' => $this->serializeSubscription($subscription),
-                'current_user_role' => (string) $workspace->role,
-                'shops_mode' => $mode,
-                'onboarding_required' => false,
-            ],
+            $this->buildShopsContextPayload($workspace, $subscription, $mode, $shopsSetup),
+        );
+    }
+
+    public function storeShopsSetup(StoreShopsSetupRequest $request, string $workspaceSlug): JsonResponse
+    {
+        $workspace = $this->resolveWorkspaceMembership($request, $workspaceSlug);
+
+        if (! $workspace) {
+            return $this->workspaceNotFoundResponse();
+        }
+
+        $subscription = $this->resolveWorkspaceProductSubscription(
+            (string) $workspace->account_id,
+            'shops',
+        );
+
+        if (! $subscription || $subscription->status !== 'active') {
+            return $this->errorResponse(
+                'Shops must be active for this workspace before setup can continue.',
+                [],
+                409,
+                'SHOPS_ACCESS_REQUIRED',
+            );
+        }
+
+        $shopsMode = $this->resolveWorkspaceSetting(
+            (string) $workspace->id,
+            self::SHOPS_MODE_SETTING_KEY,
+        );
+
+        if ($shopsMode === null) {
+            return $this->errorResponse(
+                'Shops mode must be selected before setup can continue.',
+                [],
+                409,
+                'SHOPS_MODE_REQUIRED',
+            );
+        }
+
+        /** @var User $user */
+        $user = $request->user();
+
+        $shopsSetup = [
+            'business_type' => $request->validated('business_type'),
+            'country' => $request->validated('country'),
+            'currency' => $request->validated('currency'),
+            'first_branch_name' => $request->validated('first_branch_name'),
+        ];
+
+        $this->upsertWorkspaceSetting(
+            (string) $workspace->id,
+            self::SHOPS_SETUP_SETTING_KEY,
+            json_encode($shopsSetup, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $user->id,
+        );
+
+        return $this->successResponse(
+            'Shops setup saved successfully.',
+            $this->buildShopsContextPayload($workspace, $subscription, $shopsMode, $shopsSetup),
         );
     }
 
@@ -305,6 +337,102 @@ class WorkspaceAppController extends Controller
             ->value('value');
 
         return $value ? (string) $value : null;
+    }
+
+    /**
+     * @return array<string, string|null>|null
+     */
+    private function resolveWorkspaceJsonSetting(string $workspaceId, string $key): ?array
+    {
+        $value = $this->resolveWorkspaceSetting($workspaceId, $key);
+
+        if (! $value) {
+            return null;
+        }
+
+        $decoded = json_decode($value, true);
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        return [
+            'business_type' => isset($decoded['business_type']) ? (string) $decoded['business_type'] : null,
+            'country' => isset($decoded['country']) ? (string) $decoded['country'] : null,
+            'currency' => isset($decoded['currency']) ? (string) $decoded['currency'] : null,
+            'first_branch_name' => isset($decoded['first_branch_name']) && $decoded['first_branch_name'] !== null
+                ? (string) $decoded['first_branch_name']
+                : null,
+        ];
+    }
+
+    private function upsertWorkspaceSetting(string $workspaceId, string $key, string $value, int $selectedByUserId): void
+    {
+        $now = now();
+
+        DB::transaction(function () use ($workspaceId, $key, $value, $selectedByUserId, $now): void {
+            $existingSetting = DB::table('workspace_settings')
+                ->where('workspace_id', $workspaceId)
+                ->where('key', $key)
+                ->first();
+
+            if ($existingSetting) {
+                DB::table('workspace_settings')
+                    ->where('id', $existingSetting->id)
+                    ->update([
+                        'value' => $value,
+                        'selected_by_user_id' => $selectedByUserId,
+                        'updated_at' => $now,
+                    ]);
+
+                return;
+            }
+
+            DB::table('workspace_settings')->insert([
+                'id' => (string) Str::ulid(),
+                'workspace_id' => $workspaceId,
+                'key' => $key,
+                'value' => $value,
+                'selected_by_user_id' => $selectedByUserId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        });
+    }
+
+    /**
+     * @param  array<string, string|null>|null  $shopsSetup
+     * @return array<string, array<string, string|null>|bool|string|null>
+     */
+    private function buildShopsContextPayload(object $workspace, ?object $subscription, ?string $shopsMode, ?array $shopsSetup): array
+    {
+        $hasActiveSubscription = $subscription?->status === 'active';
+        $setupCompleted = $this->isShopsSetupComplete($shopsSetup);
+
+        return [
+            'workspace' => $this->serializeWorkspace($workspace),
+            'product' => 'shops',
+            'subscription' => $this->serializeSubscription($subscription),
+            'current_user_role' => (string) $workspace->role,
+            'shops_mode' => $shopsMode,
+            'shops_setup' => $shopsSetup,
+            'onboarding_required' => $hasActiveSubscription && $shopsMode === null,
+            'setup_required' => $hasActiveSubscription && $shopsMode !== null && ! $setupCompleted,
+        ];
+    }
+
+    /**
+     * @param  array<string, string|null>|null  $shopsSetup
+     */
+    private function isShopsSetupComplete(?array $shopsSetup): bool
+    {
+        if (! $shopsSetup) {
+            return false;
+        }
+
+        return filled($shopsSetup['business_type'] ?? null)
+            && filled($shopsSetup['country'] ?? null)
+            && filled($shopsSetup['currency'] ?? null);
     }
 
     /**

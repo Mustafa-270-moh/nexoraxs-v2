@@ -13,6 +13,49 @@ export type ShopsMode =
   | "online_store"
   | "both";
 
+export type ShopsBusinessType =
+  | "mobile_store"
+  | "clothing"
+  | "shoes"
+  | "supermarket"
+  | "electronics"
+  | "other";
+
+export type ShopsCountry = "EG";
+
+export type ShopsCurrency = "EGP";
+
+export type ShopsSetup = {
+  business_type: ShopsBusinessType;
+  country: ShopsCountry;
+  currency: ShopsCurrency;
+  first_branch_name: string | null;
+};
+
+export type ShopsContextData = {
+  workspace: Workspace;
+  product: string;
+  subscription: {
+    status: string;
+    plan_code: string | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    has_access: boolean;
+  };
+  current_user_role: string;
+  shops_mode: ShopsMode | null;
+  shops_setup: ShopsSetup | null;
+  onboarding_required: boolean;
+  setup_required: boolean;
+};
+
+export type StoreShopsSetupPayload = {
+  business_type: ShopsBusinessType;
+  country: ShopsCountry;
+  currency: ShopsCurrency;
+  first_branch_name?: string | null;
+};
+
 type ApiEnvelope<T> = {
   message: string;
   data: T;
@@ -189,47 +232,34 @@ async function request<T>(
 }
 
 export function getShopsContext(workspaceSlug: string) {
-  return request<
-    ApiEnvelope<{
-      workspace: Workspace;
-      product: string;
-      subscription: {
-        status: string;
-        plan_code: string | null;
-        starts_at: string | null;
-        ends_at: string | null;
-        has_access: boolean;
-      };
-      current_user_role: string;
-      shops_mode: ShopsMode | null;
-      onboarding_required: boolean;
-    }>
-  >(`/api/workspaces/${encodeURIComponent(workspaceSlug)}/shops/context`, {
-    method: "GET",
-  });
+  return request<ApiEnvelope<ShopsContextData>>(
+    `/api/workspaces/${encodeURIComponent(workspaceSlug)}/shops/context`,
+    {
+      method: "GET",
+    },
+  );
 }
 
 export function storeShopsMode(workspaceSlug: string, mode: ShopsMode) {
-  return request<
-    ApiEnvelope<{
-      workspace: Workspace;
-      product: string;
-      subscription: {
-        status: string;
-        plan_code: string | null;
-        starts_at: string | null;
-        ends_at: string | null;
-        has_access: boolean;
-      };
-      current_user_role: string;
-      shops_mode: ShopsMode;
-      onboarding_required: boolean;
-    }>
-  >(
+  return request<ApiEnvelope<ShopsContextData>>(
     `/api/workspaces/${encodeURIComponent(workspaceSlug)}/shops/mode`,
     {
       method: "POST",
       body: JSON.stringify({ mode }),
+    },
+    { requireCsrf: true },
+  );
+}
+
+export function storeShopsSetup(
+  workspaceSlug: string,
+  payload: StoreShopsSetupPayload,
+) {
+  return request<ApiEnvelope<ShopsContextData>>(
+    `/api/workspaces/${encodeURIComponent(workspaceSlug)}/shops/setup`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
     },
     { requireCsrf: true },
   );

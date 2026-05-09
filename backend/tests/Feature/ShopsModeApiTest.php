@@ -33,7 +33,9 @@ class ShopsModeApiTest extends TestCase
             ->assertJsonPath('data.workspace.slug', 'mode-workspace')
             ->assertJsonPath('data.subscription.status', 'active')
             ->assertJsonPath('data.shops_mode', null)
-            ->assertJsonPath('data.onboarding_required', true);
+            ->assertJsonPath('data.shops_setup', null)
+            ->assertJsonPath('data.onboarding_required', true)
+            ->assertJsonPath('data.setup_required', false);
     }
 
     public function test_owner_can_store_shops_mode_and_context_returns_it(): void
@@ -58,7 +60,9 @@ class ShopsModeApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('message', 'Shops mode saved successfully.')
             ->assertJsonPath('data.shops_mode', 'both')
-            ->assertJsonPath('data.onboarding_required', false);
+            ->assertJsonPath('data.shops_setup', null)
+            ->assertJsonPath('data.onboarding_required', false)
+            ->assertJsonPath('data.setup_required', true);
 
         $this->assertDatabaseHas('workspace_settings', [
             'workspace_id' => $workspaceId,
@@ -70,7 +74,9 @@ class ShopsModeApiTest extends TestCase
         $this->getJson('/api/workspaces/owner-mode-workspace/shops/context')
             ->assertOk()
             ->assertJsonPath('data.shops_mode', 'both')
-            ->assertJsonPath('data.onboarding_required', false);
+            ->assertJsonPath('data.shops_setup', null)
+            ->assertJsonPath('data.onboarding_required', false)
+            ->assertJsonPath('data.setup_required', true);
     }
 
     public function test_non_owner_cannot_store_shops_mode(): void
@@ -140,12 +146,157 @@ class ShopsModeApiTest extends TestCase
         $this->getJson('/api/workspaces/shops-mode-a/shops/context')
             ->assertOk()
             ->assertJsonPath('data.shops_mode', 'business_management')
-            ->assertJsonPath('data.onboarding_required', false);
+            ->assertJsonPath('data.onboarding_required', false)
+            ->assertJsonPath('data.setup_required', true);
 
         $this->getJson('/api/workspaces/shops-mode-b/shops/context')
             ->assertOk()
             ->assertJsonPath('data.shops_mode', null)
-            ->assertJsonPath('data.onboarding_required', true);
+            ->assertJsonPath('data.onboarding_required', true)
+            ->assertJsonPath('data.setup_required', false);
+    }
+
+    public function test_shops_setup_persists_and_completed_setup_skips_wizard(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create();
+        $accountId = $this->insertAccount('Setup Account', 'setup-account');
+        $workspaceId = (string) Str::ulid();
+
+        $this->insertWorkspace($workspaceId, $accountId, 'Setup Workspace', 'setup-workspace');
+        $this->insertMembership($workspaceId, $user->id, 'owner');
+
+        $this->actingAs($user);
+
+        $this->postJson('/api/workspaces/setup-workspace/apps/shops/subscribe')
+            ->assertOk();
+
+        $this->postJson('/api/workspaces/setup-workspace/shops/mode', [
+            'mode' => 'online_store',
+        ])->assertOk();
+
+        $this->postJson('/api/workspaces/setup-workspace/shops/setup', [
+            'business_type' => 'electronics',
+            'country' => 'EG',
+            'currency' => 'EGP',
+            'first_branch_name' => 'Main Branch',
+        ])
+            ->assertOk()
+            ->assertJsonPath('message', 'Shops setup saved successfully.')
+            ->assertJsonPath('data.shops_mode', 'online_store')
+            ->assertJsonPath('data.shops_setup.business_type', 'electronics')
+            ->assertJsonPath('data.shops_setup.country', 'EG')
+            ->assertJsonPath('data.shops_setup.currency', 'EGP')
+            ->assertJsonPath('data.shops_setup.first_branch_name', 'Main Branch')
+            ->assertJsonPath('data.setup_required', false);
+
+        $this->assertDatabaseHas('workspace_settings', [
+            'workspace_id' => $workspaceId,
+            'key' => 'shops.setup',
+            'selected_by_user_id' => $user->id,
+        ]);
+
+        $storedSetup = DB::table('workspace_settings')
+            ->where('workspace_id', $workspaceId)
+            ->where('key', 'shops.setup')
+            ->value('value');
+
+        $this->assertJsonStringEqualsJsonString(
+            json_encode([
+                'business_type' => 'electronics',
+                'country' => 'EG',
+                'currency' => 'EGP',
+                'first_branch_name' => 'Main Branch',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            (string) $storedSetup,
+        );
+
+        $this->getJson('/api/workspaces/setup-workspace/shops/context')
+            ->assertOk()
+            ->assertJsonPath('data.shops_mode', 'online_store')
+            ->assertJsonPath('data.onboarding_required', false)
+            ->assertJsonPath('data.setup_required', false)
+            ->assertJsonPath('data.shops_setup.business_type', 'electronics')
+            ->assertJsonPath('data.shops_setup.country', 'EG')
+            ->assertJsonPath('data.shops_setup.currency', 'EGP')
+            ->assertJsonPath('data.shops_setup.first_branch_name', 'Main Branch');
+    }
+
+    public function test_shops_setup_is_isolated_per_workspace(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create();
+        $accountA = $this->insertAccount('Setup Account A', 'setup-account-a');
+        $accountB = $this->insertAccount('Setup Account B', 'setup-account-b');
+        $workspaceA = (string) Str::ulid();
+        $workspaceB = (string) Str::ulid();
+
+        $this->insertWorkspace($workspaceA, $accountA, 'Setup Workspace A', 'setup-workspace-a');
+        $this->insertWorkspace($workspaceB, $accountB, 'Setup Workspace B', 'setup-workspace-b');
+        $this->insertMembership($workspaceA, $user->id, 'owner');
+        $this->insertMembership($workspaceB, $user->id, 'owner');
+
+        $this->actingAs($user);
+
+        $this->postJson('/api/workspaces/setup-workspace-a/apps/shops/subscribe')->assertOk();
+        $this->postJson('/api/workspaces/setup-workspace-b/apps/shops/subscribe')->assertOk();
+
+        $this->postJson('/api/workspaces/setup-workspace-a/shops/mode', [
+            'mode' => 'business_management',
+        ])->assertOk();
+        $this->postJson('/api/workspaces/setup-workspace-b/shops/mode', [
+            'mode' => 'both',
+        ])->assertOk();
+
+        $this->postJson('/api/workspaces/setup-workspace-a/shops/setup', [
+            'business_type' => 'supermarket',
+            'country' => 'EG',
+            'currency' => 'EGP',
+            'first_branch_name' => 'Main Branch',
+        ])->assertOk();
+
+        $this->getJson('/api/workspaces/setup-workspace-a/shops/context')
+            ->assertOk()
+            ->assertJsonPath('data.shops_setup.business_type', 'supermarket')
+            ->assertJsonPath('data.setup_required', false);
+
+        $this->getJson('/api/workspaces/setup-workspace-b/shops/context')
+            ->assertOk()
+            ->assertJsonPath('data.shops_mode', 'both')
+            ->assertJsonPath('data.shops_setup', null)
+            ->assertJsonPath('data.setup_required', true);
+    }
+
+    public function test_invalid_business_type_is_rejected(): void
+    {
+        $this->seed();
+
+        $user = User::factory()->create();
+        $accountId = $this->insertAccount('Invalid Setup Account', 'invalid-setup-account');
+        $workspaceId = (string) Str::ulid();
+
+        $this->insertWorkspace($workspaceId, $accountId, 'Invalid Setup Workspace', 'invalid-setup-workspace');
+        $this->insertMembership($workspaceId, $user->id, 'owner');
+
+        $this->actingAs($user);
+
+        $this->postJson('/api/workspaces/invalid-setup-workspace/apps/shops/subscribe')
+            ->assertOk();
+
+        $this->postJson('/api/workspaces/invalid-setup-workspace/shops/mode', [
+            'mode' => 'both',
+        ])->assertOk();
+
+        $this->postJson('/api/workspaces/invalid-setup-workspace/shops/setup', [
+            'business_type' => 'furniture',
+            'country' => 'EG',
+            'currency' => 'EGP',
+            'first_branch_name' => 'Main Branch',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['business_type']);
     }
 
     private function insertAccount(string $name, string $slug): string

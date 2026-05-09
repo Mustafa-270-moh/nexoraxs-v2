@@ -64,6 +64,8 @@ These Shops access endpoints are implemented in the current foundation phase:
 - `GET /api/workspaces/{workspaceSlug}/apps`
 - `POST /api/workspaces/{workspaceSlug}/apps/shops/subscribe`
 - `GET /api/workspaces/{workspaceSlug}/shops/context`
+- `POST /api/workspaces/{workspaceSlug}/shops/mode`
+- `POST /api/workspaces/{workspaceSlug}/shops/setup`
 
 Current behavior:
 - all Shops access endpoints require Sanctum session authentication
@@ -76,6 +78,16 @@ Current behavior:
   - `product` as `shops`
   - `subscription` status and access state
   - `current_user_role`
+  - `shops_mode`
+  - `shops_setup`
+  - `onboarding_required`
+  - `setup_required`
+- `POST /api/workspaces/{workspaceSlug}/shops/mode` saves one workspace-level Shops mode after access is active
+- `POST /api/workspaces/{workspaceSlug}/shops/setup` saves one minimal workspace-level Shops setup record with:
+  - `business_type`
+  - `country`
+  - `currency`
+  - `first_branch_name`
 
 ## Response Shape
 

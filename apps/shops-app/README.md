@@ -5,6 +5,7 @@ Minimal placeholder shell for `shops.nexoraxs.com`.
 Current scope:
 - workspace-aware Shops entry route
 - Shops onboarding mode selection
+- minimal Shops setup wizard
 - placeholder Shops dashboard
 - browser-to-Laravel Sanctum session auth
 
@@ -73,6 +74,11 @@ Example:
 ```text
 http://localhost:3001/w/blue-market
 ```
+
+Current flow:
+- no mode selected: show mode onboarding
+- mode selected but setup incomplete: show setup wizard
+- mode selected and setup complete: show placeholder dashboard
 
 ## Local Backend Requirement
 

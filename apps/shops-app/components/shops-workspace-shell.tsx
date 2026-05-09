@@ -1,23 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
-  ApiClientError,
-  type ShopsMode,
-  getShopsContext,
-  storeShopsMode,
-} from "@/lib/shops-api";
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+  useEffect,
+  useState,
+} from "react";
+import { resolveCoreAppBaseUrl } from "@/lib/core-app-url.mjs";
+import {
+  SHOPS_BUSINESS_TYPE_OPTIONS,
+  SHOPS_COUNTRY_OPTIONS,
+  SHOPS_CURRENCY_OPTIONS,
+  createInitialShopsSetup,
+  formatShopsBusinessTypeLabel,
+  formatShopsCountryLabel,
+  formatShopsCurrencyLabel,
+} from "@/lib/shops-setup.mjs";
 import {
   SHOPS_MODE_OPTIONS,
   formatShopsModeLabel,
 } from "@/lib/shops-mode.mjs";
-import { resolveCoreAppBaseUrl } from "@/lib/core-app-url.mjs";
+import {
+  ApiClientError,
+  type ShopsBusinessType,
+  type ShopsContextData,
+  type ShopsCountry,
+  type ShopsCurrency,
+  type ShopsMode,
+  type ShopsSetup,
+  getShopsContext,
+  storeShopsMode,
+  storeShopsSetup,
+} from "@/lib/shops-api";
 
 type ShopsWorkspaceShellProps = {
   workspaceSlug: string;
 };
 
-type ShopsContextData = Awaited<ReturnType<typeof getShopsContext>>["data"];
+type SetupFormState = {
+  business_type: ShopsBusinessType;
+  country: ShopsCountry;
+  currency: ShopsCurrency;
+  first_branch_name: string;
+};
 
 const pendingShopsContextRequests = new Map<string, Promise<ShopsContextData>>();
 
@@ -43,13 +69,40 @@ function loadSharedShopsContext(workspaceSlug: string) {
   return pendingShopsContextRequests.get(workspaceSlug)!;
 }
 
+function createSetupFormState(savedSetup: ShopsSetup | null): SetupFormState {
+  return createInitialShopsSetup(savedSetup) as SetupFormState;
+}
+
+function resolveApiErrorMessage(error: unknown, fallbackMessage: string) {
+  if (!(error instanceof ApiClientError)) {
+    return fallbackMessage;
+  }
+
+  const firstValidationError = Object.values(error.errors)[0]?.[0];
+
+  return firstValidationError ?? error.message;
+}
+
+function applyContextState(
+  nextContext: ShopsContextData,
+  setContext: Dispatch<SetStateAction<ShopsContextData | null>>,
+  setSetupForm: Dispatch<SetStateAction<SetupFormState>>,
+) {
+  setContext(nextContext);
+  setSetupForm(createSetupFormState(nextContext.shops_setup));
+}
+
 export function ShopsWorkspaceShell({
   workspaceSlug,
 }: ShopsWorkspaceShellProps) {
   const [context, setContext] = useState<ShopsContextData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingMode, setIsSavingMode] = useState(false);
+  const [isSavingSetup, setIsSavingSetup] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [setupForm, setSetupForm] = useState<SetupFormState>(() =>
+    createSetupFormState(null),
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -65,7 +118,7 @@ export function ShopsWorkspaceShell({
           return;
         }
 
-        setContext(nextContext);
+        applyContextState(nextContext, setContext, setSetupForm);
       } catch (error) {
         if (!isActive) {
           return;
@@ -78,9 +131,10 @@ export function ShopsWorkspaceShell({
 
         setContext(null);
         setErrorMessage(
-          error instanceof ApiClientError
-            ? error.message
-            : "Unexpected frontend error while loading the Shops foundation shell.",
+          resolveApiErrorMessage(
+            error,
+            "Unexpected frontend error while loading the Shops foundation shell.",
+          ),
         );
       } finally {
         if (isActive) {
@@ -106,7 +160,7 @@ export function ShopsWorkspaceShell({
 
     try {
       const response = await storeShopsMode(workspaceSlug, mode);
-      setContext(response.data);
+      applyContextState(response.data, setContext, setSetupForm);
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401) {
         window.location.replace(`${coreAppBaseUrl()}/login`);
@@ -114,18 +168,68 @@ export function ShopsWorkspaceShell({
       }
 
       setErrorMessage(
-        error instanceof ApiClientError
-          ? error.message
-          : "Unexpected frontend error while saving the Shops mode.",
+        resolveApiErrorMessage(
+          error,
+          "Unexpected frontend error while saving the Shops mode.",
+        ),
       );
     } finally {
       setIsSavingMode(false);
     }
   }
 
+  function updateSetupField<FieldName extends keyof SetupFormState>(
+    fieldName: FieldName,
+    value: SetupFormState[FieldName],
+  ) {
+    setSetupForm((currentForm) => ({
+      ...currentForm,
+      [fieldName]: value,
+    }));
+  }
+
+  async function handleSetupSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSavingSetup) {
+      return;
+    }
+
+    setIsSavingSetup(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await storeShopsSetup(workspaceSlug, {
+        business_type: setupForm.business_type,
+        country: setupForm.country,
+        currency: setupForm.currency,
+        first_branch_name: setupForm.first_branch_name.trim() || null,
+      });
+
+      applyContextState(response.data, setContext, setSetupForm);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        window.location.replace(`${coreAppBaseUrl()}/login`);
+        return;
+      }
+
+      setErrorMessage(
+        resolveApiErrorMessage(
+          error,
+          "Unexpected frontend error while saving the Shops setup.",
+        ),
+      );
+    } finally {
+      setIsSavingSetup(false);
+    }
+  }
+
   const hasAccess = context?.subscription.has_access ?? false;
-  const selectedMode = context?.shops_mode ?? null;
   const onboardingRequired = context?.onboarding_required ?? false;
+  const selectedMode = context?.shops_mode ?? null;
+  const setupRequired = context?.setup_required ?? false;
+  const savedSetup = context?.shops_setup ?? null;
+  const setupComplete = hasAccess && !onboardingRequired && !setupRequired && !!savedSetup;
 
   return (
     <main className="screen-shell">
@@ -143,7 +247,7 @@ export function ShopsWorkspaceShell({
           </p>
           <ul className="hero-list">
             <li>Core App owns auth, workspace selection, and app launch</li>
-            <li>Shops App owns its own onboarding and placeholder dashboard</li>
+            <li>Shops App owns onboarding, setup, and its placeholder dashboard</li>
             <li>Workspace context is always route-driven through `/w/{'{'}workspaceSlug{'}'}`</li>
           </ul>
           <p className="hero-note">
@@ -156,15 +260,15 @@ export function ShopsWorkspaceShell({
             <div className="status-panel info">
               <p className="status-title">Loading Shops foundation</p>
               <p className="status-copy">
-                Confirming workspace access and reading the saved Shops mode for
-                this workspace.
+                Confirming workspace access and reading the saved Shops mode and
+                setup state for this workspace.
               </p>
             </div>
           ) : null}
 
           {errorMessage ? (
             <div className="status-panel error">
-              <p className="status-title">Unable to load Shops</p>
+              <p className="status-title">Unable to continue in Shops</p>
               <p className="status-copy">{errorMessage}</p>
             </div>
           ) : null}
@@ -175,8 +279,8 @@ export function ShopsWorkspaceShell({
                 <p className="eyebrow">Workspace context</p>
                 <h2 className="panel-title">{context.workspace.name}</h2>
                 <p className="muted">
-                  This placeholder shell reads workspace access from the backend
-                  and persists one onboarding mode per workspace.
+                  This placeholder shell keeps one Shops mode and one minimal
+                  setup record per workspace before any real commerce modules exist.
                 </p>
               </header>
 
@@ -211,6 +315,20 @@ export function ShopsWorkspaceShell({
                       : "Not selected yet"}
                   </p>
                 </article>
+                <article className="summary-card">
+                  <p className="summary-label">Setup status</p>
+                  <div className="link-row">
+                    <span
+                      className={
+                        setupComplete
+                          ? "status-badge active"
+                          : "status-badge pending"
+                      }
+                    >
+                      {setupComplete ? "Completed" : "Pending"}
+                    </span>
+                  </div>
+                </article>
               </div>
 
               {!hasAccess ? (
@@ -222,7 +340,10 @@ export function ShopsWorkspaceShell({
                     can continue.
                   </p>
                   <div className="button-row" style={{ marginTop: 12 }}>
-                    <a className="button-secondary" href={`${coreAppBaseUrl()}/dashboard`}>
+                    <a
+                      className="button-secondary"
+                      href={`${coreAppBaseUrl()}/dashboard`}
+                    >
                       Back to Core App
                     </a>
                   </div>
@@ -233,10 +354,12 @@ export function ShopsWorkspaceShell({
                 <section className="mode-grid">
                   <div>
                     <p className="eyebrow">Onboarding mode</p>
-                    <h3 className="panel-title">Choose how this workspace will start in Shops</h3>
+                    <h3 className="panel-title">
+                      Choose how this workspace will start in Shops
+                    </h3>
                     <p className="muted">
-                      This saves one workspace-level Shops mode and skips this
-                      onboarding screen on later visits.
+                      This saves one workspace-level Shops mode and unlocks the
+                      setup wizard on later visits.
                     </p>
                   </div>
 
@@ -254,9 +377,7 @@ export function ShopsWorkspaceShell({
                           className="mode-button"
                           type="button"
                           onClick={() =>
-                            void handleModeSelection(
-                              option.value as ShopsMode,
-                            )
+                            void handleModeSelection(option.value as ShopsMode)
                           }
                           disabled={isSavingMode}
                         >
@@ -270,16 +391,160 @@ export function ShopsWorkspaceShell({
                 </section>
               ) : null}
 
-              {hasAccess && !onboardingRequired && selectedMode ? (
-                <section className="status-panel info">
-                  <p className="status-title">Shops placeholder dashboard</p>
-                  <p className="status-copy">
-                    The selected mode for this workspace is{" "}
-                    <strong>{formatShopsModeLabel(selectedMode)}</strong>. Later
-                    visits now skip onboarding and land directly on this
-                    placeholder dashboard.
-                  </p>
+              {hasAccess && !onboardingRequired && setupRequired ? (
+                <section className="setup-grid">
+                  <div>
+                    <p className="eyebrow">Setup wizard</p>
+                    <h3 className="panel-title">Finish the workspace foundation</h3>
+                    <p className="muted">
+                      This stores one minimal Shops setup record per workspace
+                      before the placeholder dashboard is shown.
+                    </p>
+                  </div>
+
+                  <form className="setup-card" onSubmit={handleSetupSubmit}>
+                    <div className="field-grid">
+                      <label className="field">
+                        <span className="field-label">Business type</span>
+                        <select
+                          className="field-control"
+                          value={setupForm.business_type}
+                          onChange={(event) =>
+                            updateSetupField(
+                              "business_type",
+                              event.target.value as ShopsBusinessType,
+                            )
+                          }
+                          disabled={isSavingSetup}
+                        >
+                          {SHOPS_BUSINESS_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="field">
+                        <span className="field-label">Country</span>
+                        <select
+                          className="field-control"
+                          value={setupForm.country}
+                          onChange={(event) =>
+                            updateSetupField(
+                              "country",
+                              event.target.value as ShopsCountry,
+                            )
+                          }
+                          disabled={isSavingSetup}
+                        >
+                          {SHOPS_COUNTRY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="field">
+                        <span className="field-label">Currency</span>
+                        <select
+                          className="field-control"
+                          value={setupForm.currency}
+                          onChange={(event) =>
+                            updateSetupField(
+                              "currency",
+                              event.target.value as ShopsCurrency,
+                            )
+                          }
+                          disabled={isSavingSetup}
+                        >
+                          {SHOPS_CURRENCY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      <label className="field field-wide">
+                        <span className="field-label">First branch name</span>
+                        <input
+                          className="field-control"
+                          type="text"
+                          value={setupForm.first_branch_name}
+                          onChange={(event) =>
+                            updateSetupField(
+                              "first_branch_name",
+                              event.target.value,
+                            )
+                          }
+                          placeholder="Main Branch"
+                          autoComplete="organization"
+                          disabled={isSavingSetup}
+                        />
+                        <span className="helper-copy">
+                          Optional for now. Leaving it empty is allowed.
+                        </span>
+                      </label>
+                    </div>
+
+                    <div className="button-row">
+                      <button
+                        className="button"
+                        type="submit"
+                        disabled={isSavingSetup}
+                      >
+                        {isSavingSetup
+                          ? "Saving setup..."
+                          : "Complete Shops setup"}
+                      </button>
+                    </div>
+                  </form>
                 </section>
+              ) : null}
+
+              {setupComplete && selectedMode && savedSetup ? (
+                <>
+                  <section className="status-panel info">
+                    <p className="status-title">Shops placeholder dashboard</p>
+                    <p className="status-copy">
+                      This workspace selected{" "}
+                      <strong>{formatShopsModeLabel(selectedMode)}</strong> and
+                      completed the minimal setup wizard. Later visits now skip
+                      onboarding and setup.
+                    </p>
+                  </section>
+
+                  <div className="summary-grid">
+                    <article className="summary-card">
+                      <p className="summary-label">Business type</p>
+                      <p className="summary-value">
+                        {formatShopsBusinessTypeLabel(savedSetup.business_type)}
+                      </p>
+                    </article>
+                    <article className="summary-card">
+                      <p className="summary-label">Country</p>
+                      <p className="summary-value">
+                        {formatShopsCountryLabel(savedSetup.country)}
+                      </p>
+                    </article>
+                    <article className="summary-card">
+                      <p className="summary-label">Currency</p>
+                      <p className="summary-value">
+                        {formatShopsCurrencyLabel(savedSetup.currency)}
+                      </p>
+                    </article>
+                    {savedSetup.first_branch_name ? (
+                      <article className="summary-card">
+                        <p className="summary-label">First branch name</p>
+                        <p className="summary-value">
+                          {savedSetup.first_branch_name}
+                        </p>
+                      </article>
+                    ) : null}
+                  </div>
+                </>
               ) : null}
 
               <div className="link-row">

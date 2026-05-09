@@ -1,0 +1,3 @@
+auto-install-peers=true
+script-shell="/bin/sh"
+ignore-scripts=false
